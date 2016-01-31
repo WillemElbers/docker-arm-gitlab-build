@@ -56,3 +56,44 @@ RUN ln -s /usr/local/go/bin/go /usr/bin/go \
 RUN cd /home/git/gitlab \
  && echo "yes" | sudo -u git -H bundle exec rake gitlab:setup RAILS_ENV=production
 
+RUN cd /home/git/gitlab \
+ && sudo -u git -H bundle exec rake gitlab:env:info RAILS_ENV=production \
+ && sudo -u git -H bundle exec rake assets:precompile RAILS_ENV=production
+
+RUN cp /home/git/gitlab/lib/support/init.d/gitlab /etc/init.d/gitlab
+
+#Fix permissions
+RUN sudo chmod -R ug+rwX,o-rwx /home/git/repositories/ \
+ && sudo chmod -R ug-s /home/git/repositories/ \
+ && sudo find /home/git/repositories/ -type d -print0 | sudo xargs -0 chmod g+s \
+ && sudo chmod 0750 /home/git/gitlab/public/uploads
+
+WORKDIR /home/git/gitlab
+
+ENV RAILS_ENV="production"
+
+RUN apt-get update \
+ && apt-get install -y supervisor
+#RAILS_ENV=$RAILS_ENV bin/web start
+#RAILS_ENV=$RAILS_ENV bin/background_jobs start &
+#$app_root/bin/daemon_with_pidfile $gitlab_workhorse_pid_path  \
+#      /usr/bin/env PATH=$gitlab_workhorse_dir:$PATH \
+#        gitlab-workhorse $gitlab_workhorse_options \
+#      >> $gitlab_workhorse_log 2>&1 &
+#RAILS_ENV=$RAILS_ENV bin/mail_room start &
+
+COPY supervisor/supervisord.conf /etc/supervisor/supervisord.conf
+COPY supervisor/gitlab.conf /etc/supervisor/conf.d/gitlab.conf
+COPY supervisor/gitlab_workhorse.conf /etc/supervisor/conf.d/gitlab_workhorse.conf
+#COPY supervisor/sidekiq.conf /etc/supervisor/conf.d/sidekiq.conf
+
+COPY redis-cli /usr/local/bin/redis-cli
+RUN chmod u+x /usr/local/bin/redis-cli \
+ && chmod -R go-w /go
+
+COPY gitlab-shell/config.yml /home/git/gitlab-shell/config.yml
+#COPY gitlab-shell/gitlab_config.rb /home/git/gitlab-shell/lib/gitlab_config.rb
+
+EXPOSE 8080
+
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
