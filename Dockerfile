@@ -94,6 +94,8 @@ RUN chmod u+x /usr/local/bin/redis-cli \
 COPY gitlab-shell/config.yml /home/git/gitlab-shell/config.yml
 #COPY gitlab-shell/gitlab_config.rb /home/git/gitlab-shell/lib/gitlab_config.rb
 
+VOLUME ["/home/git/gitlab/public"]
+
 EXPOSE 8080
 
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
